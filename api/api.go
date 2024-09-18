@@ -82,6 +82,11 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		w.Write([]byte("pong"))
 	})
 
+	r.Get("/ngetes", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("ngetes doankkk"))
+	})
+
 	r.Get("/*", SPAHandler("public"))
 
 	return r, nil
