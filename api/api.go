@@ -87,6 +87,18 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		panic("busettt")
 	})
 
+	r.Get("/ngetes_timeout", func(w http.ResponseWriter, r *http.Request) {
+		// This can be used to test Timeout middleware
+		ctx := r.Context()
+		select {
+		case <-time.After(20 * time.Second):
+			w.Write([]byte("ngetes"))
+		case <-ctx.Done():
+			http.Error(w, "request timeout", http.StatusRequestTimeout)
+			return
+		}
+	})
+
 	r.Get("/*", SPAHandler("public"))
 
 	return r, nil
