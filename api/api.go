@@ -83,8 +83,8 @@ func New(enableCORS bool) (*chi.Mux, error) {
 	})
 
 	r.Get("/ngetes", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("ngetes doankkk"))
+		// This can be used to test Recoverer middleware
+		panic("busettt")
 	})
 
 	r.Get("/*", SPAHandler("public"))
