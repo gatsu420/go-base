@@ -89,12 +89,19 @@ func newAccountResponse(a *pwdless.Account) *accountResponse {
 
 type accountListResponse struct {
 	Accounts *[]pwdless.Account `json:"accounts"`
+	Names    []string           `json:"names"`
 	Count    int                `json:"count"`
 }
 
 func newAccountListResponse(a *[]pwdless.Account, count int) *accountListResponse {
+	names := make([]string, len(*a))
+	for i, account := range *a {
+		names[i] = account.Name
+	}
+
 	resp := &accountListResponse{
 		Accounts: a,
+		Names:    names,
 		Count:    count,
 	}
 	return resp
