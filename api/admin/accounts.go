@@ -28,15 +28,31 @@ type AccountStore interface {
 	Delete(*pwdless.Account) error
 }
 
+// NameStore defines database operations related to user names.
+type NameStore interface {
+	ListOnly() ([]pwdless.Account, error)
+}
+
 // AccountResource implements account management handler.
 type AccountResource struct {
 	Store AccountStore
+}
+
+// NameResource implements user names management handler.
+type NameResource struct {
+	Store NameStore
 }
 
 // NewAccountResource creates and returns an account resource.
 func NewAccountResource(store AccountStore) *AccountResource {
 	return &AccountResource{
 		Store: store,
+	}
+}
+
+func NewNameResource(st NameStore) *NameResource {
+	return &NameResource{
+		Store: st,
 	}
 }
 
@@ -50,6 +66,16 @@ func (rs *AccountResource) router() *chi.Mux {
 		r.Put("/", rs.update)
 		r.Delete("/", rs.delete)
 	})
+	return r
+}
+
+func (rs *NameResource) router() *chi.Mux {
+	r := chi.NewRouter()
+	r.Get("/", rs.listonly)
+	r.Get("/tes", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ngetes"))
+	})
+
 	return r
 }
 
@@ -89,13 +115,36 @@ func newAccountResponse(a *pwdless.Account) *accountResponse {
 
 type accountListResponse struct {
 	Accounts *[]pwdless.Account `json:"accounts"`
+	Names    []string           `json:"names"`
 	Count    int                `json:"count"`
 }
 
+type nameListResponse struct {
+	Names []string `json:"names"`
+}
+
 func newAccountListResponse(a *[]pwdless.Account, count int) *accountListResponse {
+	names := make([]string, len(*a))
+	for i, account := range *a {
+		names[i] = account.Name
+	}
+
 	resp := &accountListResponse{
 		Accounts: a,
+		Names:    names,
 		Count:    count,
+	}
+	return resp
+}
+
+func newNameListResponse(a *[]pwdless.Account) *nameListResponse {
+	names := []string{}
+	for _, acc := range *a {
+		names = append(names, acc.Name)
+	}
+
+	resp := &nameListResponse{
+		Names: names,
 	}
 	return resp
 }
@@ -112,6 +161,17 @@ func (rs *AccountResource) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Respond(w, r, newAccountListResponse(&al, count))
+}
+
+func (rs *NameResource) listonly(w http.ResponseWriter, r *http.Request) {
+	names, err := rs.Store.ListOnly()
+	if err != nil {
+		log(r).Errorf("error %v", err)
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	render.Respond(w, r, newNameListResponse(&names))
 }
 
 func (rs *AccountResource) create(w http.ResponseWriter, r *http.Request) {
