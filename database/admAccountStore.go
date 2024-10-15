@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/dhax/go-base/auth/jwt"
@@ -90,6 +91,20 @@ func (s *AdmAccountStore) List(f *AccountFilter) ([]pwdless.Account, int, error)
 		return nil, 0, err
 	}
 	return a, count, nil
+}
+
+// ListOnly works like List, but doesn't return total count.
+func (s *AdmAccountStore) ListOnly() ([]pwdless.Account, error) {
+	a := []pwdless.Account{}
+
+	err := s.db.NewSelect().Model(&a).Scan(context.Background())
+	if err != nil {
+		fmt.Println("error fetching accounts: ", err)
+		return nil, err
+	}
+
+	fmt.Println("fetched account", a)
+	return a, nil
 }
 
 // Create creates a new account.
