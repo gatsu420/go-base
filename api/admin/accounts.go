@@ -119,8 +119,14 @@ type accountListResponse struct {
 	Count    int                `json:"count"`
 }
 
+type nameListPreResponse struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 type nameListResponse struct {
-	Names []string `json:"names"`
+	Names  []string              `json:"names"`
+	Detail []nameListPreResponse `json:"detail"`
 }
 
 func newAccountListResponse(a *[]pwdless.Account, count int) *accountListResponse {
@@ -139,12 +145,20 @@ func newAccountListResponse(a *[]pwdless.Account, count int) *accountListRespons
 
 func newNameListResponse(a *[]pwdless.Account) *nameListResponse {
 	names := []string{}
+	detail := []nameListPreResponse{}
+
 	for _, acc := range *a {
 		names = append(names, acc.Name)
+
+		detail = append(detail, nameListPreResponse{
+			Name:  acc.Name + " is the email",
+			Email: acc.Email,
+		})
 	}
 
 	resp := &nameListResponse{
-		Names: names,
+		Names:  names,
+		Detail: detail,
 	}
 	return resp
 }
