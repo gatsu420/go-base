@@ -33,6 +33,11 @@ type NameStore interface {
 	ListOnly() ([]pwdless.Account, error)
 }
 
+// NameAryStore defines database operations related to user names, but in array form.
+type NameAryStore interface {
+	ListOnly() ([]pwdless.Account, error)
+}
+
 // AccountResource implements account management handler.
 type AccountResource struct {
 	Store AccountStore
@@ -41,6 +46,11 @@ type AccountResource struct {
 // NameResource implements user names management handler.
 type NameResource struct {
 	Store NameStore
+}
+
+// NameAryResource implements array user names management handler.
+type NameAryResource struct {
+	Store NameAryStore
 }
 
 // NewAccountResource creates and returns an account resource.
@@ -52,6 +62,12 @@ func NewAccountResource(store AccountStore) *AccountResource {
 
 func NewNameResource(st NameStore) *NameResource {
 	return &NameResource{
+		Store: st,
+	}
+}
+
+func NewNameAryResource(st NameAryStore) *NameAryResource {
+	return &NameAryResource{
 		Store: st,
 	}
 }
@@ -75,6 +91,13 @@ func (rs *NameResource) router() *chi.Mux {
 	r.Get("/tes", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ngetes"))
 	})
+
+	return r
+}
+
+func (rs *NameAryResource) router() *chi.Mux {
+	r := chi.NewRouter()
+	r.Get("/", rs.listonly)
 
 	return r
 }
@@ -129,6 +152,11 @@ type nameListResponse struct {
 	Detail []nameListPreResponse `json:"detail"`
 }
 
+type nameAryListResponse struct {
+	Name  []string `json:"name"`
+	Email []string `json:"email"`
+}
+
 func newAccountListResponse(a *[]pwdless.Account, count int) *accountListResponse {
 	names := make([]string, len(*a))
 	for i, account := range *a {
@@ -163,6 +191,23 @@ func newNameListResponse(a *[]pwdless.Account) *nameListResponse {
 	return resp
 }
 
+func newNameAryListResponse(a *[]pwdless.Account) *nameAryListResponse {
+	names := []string{}
+	emails := []string{}
+
+	for _, acc := range *a {
+		names = append(names, acc.Name)
+		emails = append(emails, acc.Email)
+	}
+
+	resp := &nameAryListResponse{
+		Name:  names,
+		Email: emails,
+	}
+
+	return resp
+}
+
 func (rs *AccountResource) list(w http.ResponseWriter, r *http.Request) {
 	f, err := database.NewAccountFilter(r.URL.Query())
 	if err != nil {
@@ -186,6 +231,17 @@ func (rs *NameResource) listonly(w http.ResponseWriter, r *http.Request) {
 	}
 
 	render.Respond(w, r, newNameListResponse(&names))
+}
+
+func (rs *NameAryResource) listonly(w http.ResponseWriter, r *http.Request) {
+	names, err := rs.Store.ListOnly()
+	if err != nil {
+		log(r).Errorf("error: %v", err)
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	render.Respond(w, r, newNameAryListResponse(&names))
 }
 
 func (rs *AccountResource) create(w http.ResponseWriter, r *http.Request) {

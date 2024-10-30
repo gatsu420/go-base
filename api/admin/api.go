@@ -28,6 +28,7 @@ const (
 type API struct {
 	Accounts *AccountResource
 	Names    *NameResource
+	NameAry  *NameAryResource
 }
 
 // NewAPI configures and returns admin application API.
@@ -35,10 +36,12 @@ func NewAPI(db *bun.DB) (*API, error) {
 	accountStore := database.NewAdmAccountStore(db)
 	accounts := NewAccountResource(accountStore)
 	names := NewNameResource(accountStore)
+	names_ary := NewNameAryResource(accountStore)
 
 	api := &API{
 		Accounts: accounts,
 		Names:    names,
+		NameAry:  names_ary,
 	}
 	return api, nil
 }
@@ -55,6 +58,8 @@ func (a *API) Router() *chi.Mux {
 	r.Mount("/accounts", a.Accounts.router())
 
 	r.Mount("/names", a.Names.router())
+
+	r.Mount("/names_ary", a.NameAry.router())
 
 	return r
 }
