@@ -31,6 +31,7 @@ type AccountStore interface {
 // NameStore defines database operations related to user names.
 type NameStore interface {
 	ListOnly() ([]pwdless.Account, error)
+	Create(*pwdless.Account) error
 }
 
 // NameAryStore defines database operations related to user names, but in array form.
@@ -88,6 +89,7 @@ func (rs *AccountResource) router() *chi.Mux {
 func (rs *NameResource) router() *chi.Mux {
 	r := chi.NewRouter()
 	r.Get("/", rs.listonly)
+	r.Post("/", rs.createWithEnvelope)
 	r.Get("/tes", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ngetes"))
 	})
@@ -123,7 +125,15 @@ type accountRequest struct {
 	*pwdless.Account
 }
 
+type nameRequest struct {
+	Account *pwdless.Account `json:"account"`
+}
+
 func (d *accountRequest) Bind(r *http.Request) error {
+	return nil
+}
+
+func (d *nameRequest) Bind(r *http.Request) error {
 	return nil
 }
 
@@ -246,6 +256,25 @@ func (rs *NameAryResource) listonly(w http.ResponseWriter, r *http.Request) {
 
 func (rs *AccountResource) create(w http.ResponseWriter, r *http.Request) {
 	data := &accountRequest{}
+	if err := render.Bind(r, data); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	if err := rs.Store.Create(data.Account); err != nil {
+		switch err := err.(type) {
+		case validation.Errors:
+			render.Render(w, r, ErrValidation(ErrAccountValidation, err))
+			return
+		}
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+	render.Respond(w, r, newAccountResponse(data.Account))
+}
+
+func (rs *NameResource) createWithEnvelope(w http.ResponseWriter, r *http.Request) {
+	data := &nameRequest{Account: &pwdless.Account{}}
 	if err := render.Bind(r, data); err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
