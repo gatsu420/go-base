@@ -34,6 +34,7 @@ type NameStore interface {
 	Create(*pwdless.Account) error
 	Get(id int) (*pwdless.Account, error)
 	Update(*pwdless.Account) error
+	Delete(*pwdless.Account) error
 }
 
 // NameAryStore defines database operations related to user names, but in array form.
@@ -99,6 +100,7 @@ func (rs *NameResource) router() *chi.Mux {
 		r.Use(rs.accountCtx)
 		r.Get("/", rs.getWithEnvelope)
 		r.Put("/", rs.updateWithEnvelope)
+		r.Delete("/", rs.deleteWithEnvelope)
 	})
 
 	return r
@@ -387,4 +389,14 @@ func (rs *AccountResource) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Respond(w, r, http.NoBody)
+}
+
+func (rs *NameResource) deleteWithEnvelope(w http.ResponseWriter, r *http.Request) {
+	acc := r.Context().Value(ctxAccount).(*pwdless.Account)
+	if err := rs.Store.Delete(acc); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	render.Respond(w, r, newNameResponse(acc))
 }
