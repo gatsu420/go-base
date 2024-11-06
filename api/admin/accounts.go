@@ -32,6 +32,7 @@ type AccountStore interface {
 type NameStore interface {
 	ListOnly() ([]pwdless.Account, error)
 	Create(*pwdless.Account) error
+	Get(id int) (*pwdless.Account, error)
 }
 
 // NameAryStore defines database operations related to user names, but in array form.
@@ -93,6 +94,10 @@ func (rs *NameResource) router() *chi.Mux {
 	r.Get("/tes", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ngetes"))
 	})
+	r.Route("/{accountID}", func(r chi.Router) {
+		r.Use(rs.accountCtx)
+		r.Get("/", rs.getWithEnvelope)
+	})
 
 	return r
 }
@@ -105,6 +110,23 @@ func (rs *NameAryResource) router() *chi.Mux {
 }
 
 func (rs *AccountResource) accountCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "accountID"))
+		if err != nil {
+			render.Render(w, r, ErrBadRequest)
+			return
+		}
+		account, err := rs.Store.Get(id)
+		if err != nil {
+			render.Render(w, r, ErrNotFound)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxAccount, account)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (rs *NameResource) accountCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "accountID"))
 		if err != nil {
@@ -141,8 +163,18 @@ type accountResponse struct {
 	*pwdless.Account
 }
 
+type nameResponse struct {
+	Account *pwdless.Account `json:"account"`
+}
+
 func newAccountResponse(a *pwdless.Account) *accountResponse {
 	resp := &accountResponse{Account: a}
+	return resp
+}
+
+func newNameResponse(a *pwdless.Account) *nameResponse {
+	resp := &nameResponse{Account: a}
+
 	return resp
 }
 
@@ -295,6 +327,11 @@ func (rs *NameResource) createWithEnvelope(w http.ResponseWriter, r *http.Reques
 func (rs *AccountResource) get(w http.ResponseWriter, r *http.Request) {
 	acc := r.Context().Value(ctxAccount).(*pwdless.Account)
 	render.Respond(w, r, newAccountResponse(acc))
+}
+
+func (rs *NameResource) getWithEnvelope(w http.ResponseWriter, r *http.Request) {
+	acc := r.Context().Value(ctxAccount).(*pwdless.Account)
+	render.Respond(w, r, newNameResponse(acc))
 }
 
 func (rs *AccountResource) update(w http.ResponseWriter, r *http.Request) {
