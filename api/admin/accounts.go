@@ -33,6 +33,8 @@ type NameStore interface {
 	ListOnly() ([]pwdless.Account, error)
 	Create(*pwdless.Account) error
 	Get(id int) (*pwdless.Account, error)
+	Update(*pwdless.Account) error
+	Delete(*pwdless.Account) error
 }
 
 // NameAryStore defines database operations related to user names, but in array form.
@@ -97,6 +99,8 @@ func (rs *NameResource) router() *chi.Mux {
 	r.Route("/{accountID}", func(r chi.Router) {
 		r.Use(rs.accountCtx)
 		r.Get("/", rs.getWithEnvelope)
+		r.Put("/", rs.updateWithEnvelope)
+		r.Delete("/", rs.deleteWithEnvelope)
 	})
 
 	return r
@@ -355,6 +359,29 @@ func (rs *AccountResource) update(w http.ResponseWriter, r *http.Request) {
 	render.Respond(w, r, newAccountResponse(acc))
 }
 
+func (rs *NameResource) updateWithEnvelope(w http.ResponseWriter, r *http.Request) {
+	acc := r.Context().Value(ctxAccount).(*pwdless.Account)
+	data := &nameRequest{Account: acc}
+
+	if err := render.Bind(r, data); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	if err := rs.Store.Update(acc); err != nil {
+		switch err := err.(type) {
+		case validation.Errors:
+			render.Render(w, r, ErrValidation(ErrAccountValidation, err))
+			return
+		}
+
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	render.Respond(w, r, newNameResponse(acc))
+}
+
 func (rs *AccountResource) delete(w http.ResponseWriter, r *http.Request) {
 	acc := r.Context().Value(ctxAccount).(*pwdless.Account)
 	if err := rs.Store.Delete(acc); err != nil {
@@ -362,4 +389,14 @@ func (rs *AccountResource) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Respond(w, r, http.NoBody)
+}
+
+func (rs *NameResource) deleteWithEnvelope(w http.ResponseWriter, r *http.Request) {
+	acc := r.Context().Value(ctxAccount).(*pwdless.Account)
+	if err := rs.Store.Delete(acc); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
+
+	render.Respond(w, r, newNameResponse(acc))
 }
